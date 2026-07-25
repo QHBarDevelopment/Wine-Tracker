@@ -1,0 +1,950 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Wine Cellar</title>
+<style>
+  :root{
+    --vino: #6b1f2a;
+    --vino-dark: #4a1520;
+    --crema: #faf6f0;
+    --gris: #6b6b6b;
+    --verde: #2e7d32;
+    --rojo: #c62828;
+    --borde: #e6ddd3;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--crema);
+    color:#2b2b2b;
+    padding-bottom: 90px;
+  }
+  header{
+    background: var(--vino);
+    color:white;
+    padding: 18px 16px 14px;
+    position: sticky;
+    top:0;
+    z-index: 10;
+  }
+  header h1{
+    margin:0;
+    font-size: 1.25rem;
+    font-weight: 600;
+  }
+  header p{
+    margin: 4px 0 0;
+    font-size: 0.8rem;
+    opacity: 0.85;
+  }
+  .tabs{
+    display:flex;
+    background: white;
+    border-bottom: 1px solid var(--borde);
+    position: sticky;
+    top: 66px;
+    z-index: 9;
+  }
+  .tab{
+    flex:1;
+    text-align:center;
+    padding: 12px 8px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--gris);
+    cursor:pointer;
+    border-bottom: 3px solid transparent;
+  }
+  .tab.active{
+    color: var(--vino);
+    border-bottom-color: var(--vino);
+  }
+  .container{ padding: 14px; max-width: 640px; margin: 0 auto; }
+  .search-row{ display:flex; gap:8px; margin-bottom:12px; }
+  input, select, textarea{
+    width:100%;
+    padding:10px 12px;
+    border:1px solid var(--borde);
+    border-radius:10px;
+    font-size:0.95rem;
+    background:white;
+  }
+  .card{
+    background:white;
+    border:1px solid var(--borde);
+    border-radius:14px;
+    padding:14px;
+    margin-bottom:10px;
+  }
+  .card-top{ display:flex; justify-content:space-between; align-items:flex-start; gap:8px; }
+  .card-thumb{ width:44px; height:64px; object-fit:contain; border-radius:6px; background:#f5f0ea; }
+  .detail-image-wrap{
+    position:relative;
+    width:100%;
+    height:220px;
+    background:#f5f0ea;
+    border-radius:12px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    margin-bottom:14px;
+    overflow:hidden;
+  }
+  .detail-image-wrap img{
+    position:absolute;
+    top:50%;
+    left:50%;
+    width:220px;
+    height:auto;
+    max-width:none;
+    max-height:none;
+    transform: translate(-50%,-50%) rotate(90deg);
+  }
+  .detail-image-wrap.empty{ color:var(--gris); font-size:0.85rem; }
+
+  .map-grid{ display:flex; gap:14px; overflow-x:auto; padding-bottom:10px; }
+  .map-col{ flex: 0 0 200px; }
+  .map-col-title{
+    font-weight:700;
+    text-align:center;
+    background: var(--vino);
+    color:white;
+    border-radius:10px;
+    padding:8px;
+    margin-bottom:10px;
+    font-size:0.9rem;
+  }
+  .map-slot{
+    border:1px solid var(--borde);
+    border-radius:10px;
+    padding:8px;
+    margin-bottom:10px;
+    background:white;
+  }
+  .map-slot-code{
+    font-size:0.7rem;
+    font-weight:700;
+    color:var(--gris);
+    text-align:center;
+    margin-bottom:6px;
+  }
+  .map-slot-wines{ display:flex; gap:6px; }
+  .map-slot-wines.split > .map-wine-mini:nth-child(2){
+    border-left:1px solid var(--borde);
+    padding-left:6px;
+  }
+  .map-wine-mini{
+    flex:1;
+    text-align:center;
+    font-size:0.7rem;
+    cursor:pointer;
+    border-radius:8px;
+    padding:4px;
+    min-width:0;
+  }
+  .mw-photo-frame{
+    position:relative;
+    width:100%;
+    height:60px;
+    overflow:hidden;
+    background:#f5f0ea;
+    border-radius:6px;
+    margin-bottom:4px;
+  }
+  .mw-photo-frame img{
+    position:absolute;
+    top:50%;
+    left:50%;
+    width:60px;
+    height:auto;
+    max-width:none;
+    transform: translate(-50%,-50%) rotate(90deg);
+  }
+  .map-wine-mini .mw-name{
+    display:-webkit-box;
+    -webkit-line-clamp:2;
+    -webkit-box-orient:vertical;
+    overflow:hidden;
+    font-weight:600;
+  }
+  .map-wine-mini .mw-qty{
+    margin-top:2px;
+    font-size:0.62rem;
+    font-weight:400;
+    color:var(--gris);
+  }
+  .map-wine-mini.highlight{
+    outline: 3px solid var(--vino);
+    background:#fdf1f1;
+  }
+  .map-wine-mini.empty{
+    color:var(--gris);
+    font-size:0.68rem;
+    cursor:default;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    min-height:40px;
+    background:#faf7f2;
+    border:1px dashed var(--borde);
+  }
+  .map-empty-note{ text-align:center; color:var(--gris); font-size:0.85rem; padding:30px 10px; }
+
+  .invoice-type-toggle{
+    display:flex;
+    gap:8px;
+    margin: 4px 0 14px;
+  }
+  .itype-btn{
+    flex:1;
+    background:#f0ebe4;
+    color:#333;
+    border-radius:10px;
+    padding:10px;
+    font-size:0.85rem;
+    font-weight:700;
+  }
+  .itype-btn.active{
+    background: var(--vino);
+    color:white;
+  }
+  .status-check-row{
+    display:flex;
+    gap:16px;
+    padding: 4px 2px;
+  }
+  .status-check{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    font-size:0.88rem;
+    font-weight:600;
+    cursor:pointer;
+  }
+  .status-check input{ width:auto; }
+  .card-title{ font-weight:700; font-size:1rem; }
+  .card-sub{ color:var(--gris); font-size:0.82rem; margin-top:2px; }
+  .badge{
+    font-size:0.72rem;
+    font-weight:700;
+    padding:3px 9px;
+    border-radius:20px;
+    white-space:nowrap;
+  }
+  .badge.disponible{ background:#e6f4ea; color:var(--verde); }
+  .badge.agotado{ background:#fbe9e7; color:var(--rojo); }
+  .meta-row{
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+    margin-top:10px;
+    font-size:0.82rem;
+    color:#444;
+  }
+  .meta-row span b{ color:#111; }
+  .actions{ margin-top:12px; display:flex; gap:8px; flex-wrap:wrap; }
+  button{
+    border:none;
+    border-radius:10px;
+    padding:9px 14px;
+    font-size:0.85rem;
+    font-weight:600;
+    cursor:pointer;
+  }
+  .btn-primary{ background: var(--vino); color:white; }
+  .btn-secondary{ background:#f0ebe4; color:#333; }
+  .btn-danger{ background:#fbe9e7; color:var(--rojo); }
+  .btn-full{ width:100%; }
+  .empty{ text-align:center; color:var(--gris); padding:40px 10px; font-size:0.9rem; }
+  .pin-box{
+    background:white;
+    border:1px solid var(--borde);
+    border-radius:14px;
+    padding:24px 18px;
+    text-align:center;
+    margin-top:20px;
+  }
+  .pin-box h3{ margin-top:0; }
+  .form-grid{ display:flex; flex-direction:column; gap:10px; }
+  .section-title{
+    font-size:0.78rem;
+    text-transform:uppercase;
+    letter-spacing:0.04em;
+    color:var(--gris);
+    font-weight:700;
+    margin: 18px 0 8px;
+  }
+  .toast{
+    position:fixed;
+    bottom:16px;
+    left:50%;
+    transform:translateX(-50%);
+    background:#222;
+    color:white;
+    padding:10px 18px;
+    border-radius:10px;
+    font-size:0.85rem;
+    opacity:0;
+    transition:opacity 0.25s;
+    pointer-events:none;
+    z-index:100;
+  }
+  .toast.show{ opacity:1; }
+  .config-warning{
+    background:#fff3cd;
+    color:#7a5c00;
+    padding:10px 12px;
+    border-radius:10px;
+    font-size:0.8rem;
+    margin-bottom:12px;
+  }
+  .modal-bg{
+    display:none;
+    position:fixed; inset:0;
+    background:rgba(0,0,0,0.4);
+    z-index:50;
+    align-items:flex-end;
+    justify-content:center;
+  }
+  .modal-bg.show{ display:flex; }
+  .modal{
+    background:white;
+    width:100%;
+    max-width:640px;
+    border-radius:18px 18px 0 0;
+    padding:18px;
+    max-height:85vh;
+    overflow-y:auto;
+  }
+  .modal h3{ margin-top:0; }
+  .close-x{
+    float:right;
+    background:none;
+    color:var(--gris);
+    font-size:1.1rem;
+    padding:2px 8px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🍷 Wine Cellar</h1>
+  <p id="subheader">Real-time availability and location</p>
+</header>
+
+<div class="tabs">
+  <div class="tab active" data-tab="consultar">Browse</div>
+  <div class="tab" data-tab="mapa">Map</div>
+  <div class="tab" data-tab="admin">Admin</div>
+</div>
+
+<div class="container">
+
+  <!-- CONFIG WARNING -->
+  <div id="configWarning" class="config-warning" style="display:none;">
+    ⚠️ Backend URL not configured. Edit the <code>SCRIPT_URL</code> constant in this file.
+  </div>
+
+  <!-- BROWSE VIEW -->
+  <div id="view-consultar">
+    <div class="search-row">
+      <input id="searchInput" type="text" placeholder="Search by name or shelf code (e.g. H3H)..." />
+    </div>
+    <div class="search-row">
+      <select id="filterUbicacion"><option value="">All locations</option></select>
+      <select id="filterEstado">
+        <option value="">All statuses</option>
+        <option value="Disponible">Available</option>
+        <option value="Agotado">Out of stock</option>
+      </select>
+    </div>
+    <div id="wineList"></div>
+  </div>
+
+  <!-- MAP VIEW -->
+  <div id="view-mapa" style="display:none;">
+    <p style="color:var(--gris); font-size:0.85rem; margin-top:0;">Tap any bottle to see its details.</p>
+    <div id="mapContainer"></div>
+  </div>
+
+  <!-- ADMIN VIEW -->
+  <div id="view-admin" style="display:none;">
+    <div id="pinScreen" class="pin-box">
+      <h3>Admin Access</h3>
+      <p style="color:var(--gris); font-size:0.85rem;">Enter the PIN to receive stock or add wines.</p>
+      <input id="pinInput" type="password" inputmode="numeric" placeholder="PIN" style="margin-bottom:10px;" />
+      <button class="btn-primary btn-full" onclick="checkPin()">Enter</button>
+    </div>
+
+    <div id="adminPanel" style="display:none;">
+      <button class="btn-secondary btn-full" onclick="openAddWineModal()">+ Add new wine</button>
+      <div class="section-title">Inventory</div>
+      <div id="adminWineList"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- MODAL: wine detail -->
+<div class="modal-bg" id="modalDetail">
+  <div class="modal">
+    <button class="close-x" onclick="closeModal('modalDetail')">✕</button>
+    <div id="detailImageWrap" class="detail-image-wrap"></div>
+    <h3 id="detailNombre" style="margin-bottom:2px;"></h3>
+    <div id="detailSub" class="card-sub" style="margin-bottom:10px;"></div>
+    <div class="meta-row" style="margin-bottom:10px;">
+      <span id="detailBadge"></span>
+      <span>📍 <b id="detailUbicacion"></b></span>
+      <span id="detailCodigoWrap">🔖 <b id="detailCodigo"></b></span>
+      <span>🍾 <b id="detailCantidad"></b> available</span>
+    </div>
+    <div id="detailDescripcionWrap" style="margin-bottom:14px; font-size:0.9rem; color:#333;"></div>
+    <button class="btn-primary btn-full" onclick="viewOnMap()">View on shelf map</button>
+  </div>
+</div>
+
+<!-- MODAL: recibir stock / factura -->
+<div class="modal-bg" id="modalReceive">
+  <div class="modal">
+    <button class="close-x" onclick="closeModal('modalReceive')">✕</button>
+    <h3>Receive invoice</h3>
+    <p id="receiveWineName" style="color:var(--gris); font-size:0.9rem;"></p>
+
+    <div class="invoice-type-toggle">
+      <button type="button" id="btnTypeDigital" class="itype-btn active" onclick="setInvoiceType('Digital')">Digital invoice</button>
+      <button type="button" id="btnTypePhysical" class="itype-btn" onclick="setInvoiceType('Physical')">Physical invoice</button>
+    </div>
+
+    <div class="form-grid">
+      <input id="receiveInvoiceNumber" placeholder="Invoice number" style="display:none;" />
+      <input id="receiveQty" type="number" min="0" placeholder="Quantity received" />
+
+      <div class="status-check-row">
+        <label class="status-check">
+          <input type="checkbox" id="statusCompleted" onchange="onStatusCheck('completed')" />
+          Order completed
+        </label>
+        <label class="status-check">
+          <input type="checkbox" id="statusMissing" onchange="onStatusCheck('missing')" />
+          Missing items
+        </label>
+      </div>
+
+      <textarea id="receiveMissingNotes" placeholder="Details about what's missing or didn't arrive" rows="2" style="display:none;"></textarea>
+      <input id="receiveInvoicePhotoUrl" placeholder="Invoice photo URL (optional)" style="display:none;" />
+
+      <button class="btn-primary btn-full" onclick="submitReceive()">Confirm receipt</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: edit wine -->
+<div class="modal-bg" id="modalEdit">
+  <div class="modal">
+    <button class="close-x" onclick="closeModal('modalEdit')">✕</button>
+    <h3>Edit wine</h3>
+    <div class="form-grid">
+      <input id="editNombre" placeholder="Name" />
+      <input id="editTipo" placeholder="Type (Red, White, Rosé, Sparkling)" />
+      <input id="editBodega" placeholder="Winery / Origin" />
+      <input id="editPais" placeholder="Country" />
+      <input id="editAnada" placeholder="Year" />
+      <input id="editUbicacion" placeholder="Room / Area (e.g. Harbour Room)" />
+      <input id="editCodigo" placeholder="Shelf code(s), comma-separated if in multiple spots (e.g. H3H, C2A)" />
+      <input id="editCantidad" type="number" placeholder="Quantity" />
+      <input id="editImagenUrl" placeholder="Image URL (bottle photo link)" />
+      <textarea id="editDescripcion" placeholder="Quick description (shown to guests/staff)" rows="2"></textarea>
+      <textarea id="editNotas" placeholder="Internal notes" rows="2"></textarea>
+      <button class="btn-primary btn-full" onclick="submitEdit()">Save changes</button>
+      <button class="btn-danger btn-full" onclick="submitDelete()">Delete wine</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: add wine -->
+<div class="modal-bg" id="modalAdd">
+  <div class="modal">
+    <button class="close-x" onclick="closeModal('modalAdd')">✕</button>
+    <h3>Add new wine</h3>
+    <div class="form-grid">
+      <input id="addNombre" placeholder="Name" />
+      <input id="addTipo" placeholder="Type (Red, White, Rosé, Sparkling)" />
+      <input id="addBodega" placeholder="Winery / Origin" />
+      <input id="addPais" placeholder="Country" />
+      <input id="addAnada" placeholder="Year" />
+      <input id="addUbicacion" placeholder="Room / Area (e.g. Harbour Room)" />
+      <input id="addCodigo" placeholder="Shelf code(s), comma-separated if in multiple spots (e.g. H3H, C2A)" />
+      <input id="addCantidad" type="number" placeholder="Initial quantity" />
+      <input id="addImagenUrl" placeholder="Image URL (bottle photo link)" />
+      <textarea id="addDescripcion" placeholder="Quick description (shown to guests/staff)" rows="2"></textarea>
+      <textarea id="addNotas" placeholder="Internal notes" rows="2"></textarea>
+      <button class="btn-primary btn-full" onclick="submitAdd()">Add wine</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  // =====================================================
+  // CONFIG: paste your Apps Script Web App URL here
+  // =====================================================
+  const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzR0Z94v9SbPYtAbHNAztokas51-di6r6aLh43_OvHoa3iGUBChTs9zDGa3G_LdldBKRw/exec";
+
+  let wines = [];
+  let adminPin = null;
+  let currentWineId = null;
+
+  function showToast(msg){
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(()=> t.classList.remove('show'), 2200);
+  }
+
+  function openModal(id){ document.getElementById(id).classList.add('show'); }
+  function closeModal(id){ document.getElementById(id).classList.remove('show'); }
+
+  // ---- Tabs ----
+  document.querySelectorAll('.tab').forEach(tab=>{
+    tab.addEventListener('click', ()=>{
+      document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+      tab.classList.add('active');
+      const name = tab.dataset.tab;
+      document.getElementById('view-consultar').style.display = name==='consultar' ? 'block':'none';
+      document.getElementById('view-mapa').style.display = name==='mapa' ? 'block':'none';
+      document.getElementById('view-admin').style.display = name==='admin' ? 'block':'none';
+      if(name === 'mapa') renderMap();
+    });
+  });
+
+  async function fetchWines(){
+    if(SCRIPT_URL.includes("PEGA_AQUI")){
+      document.getElementById('configWarning').style.display = 'block';
+      return;
+    }
+    try{
+      const res = await fetch(SCRIPT_URL);
+      const data = await res.json();
+      if(data.ok){
+        wines = data.wines;
+        renderFilters();
+        renderList();
+        if(adminPin) renderAdminList();
+        if(document.getElementById('view-mapa').style.display === 'block') renderMap();
+      } else {
+        showToast("Error loading data");
+      }
+    }catch(err){
+      showToast("Could not connect to server");
+    }
+  }
+
+  function renderFilters(){
+    const sel = document.getElementById('filterUbicacion');
+    const current = sel.value;
+    const ubicaciones = [...new Set(wines.map(w=>w["Ubicación"]).filter(Boolean))];
+    sel.innerHTML = '<option value="">Todas las ubicaciones</option>' +
+      ubicaciones.map(u=>`<option value="${u}">${u}</option>`).join('');
+    sel.value = current;
+  }
+
+  function getFiltered(){
+    const q = document.getElementById('searchInput').value.toLowerCase();
+    const ubic = document.getElementById('filterUbicacion').value;
+    const estado = document.getElementById('filterEstado').value;
+    return wines.filter(w=>{
+      const matchQ = !q || (w["Nombre"]||"").toLowerCase().includes(q) ||
+        (w["Bodega"]||"").toLowerCase().includes(q) ||
+        (w["Tipo"]||"").toLowerCase().includes(q) ||
+        (w["Pais"]||"").toLowerCase().includes(q) ||
+        (w["Codigo"]||"").toLowerCase().includes(q);
+      const matchU = !ubic || w["Ubicación"] === ubic;
+      const matchE = !estado || w["Estado"] === estado;
+      return matchQ && matchU && matchE;
+    });
+  }
+
+  function wineCardHtml(w, adminMode){
+    const estado = w["Estado"] || "Disponible";
+    const badgeClass = estado === "Agotado" ? "agotado" : "disponible";
+    let actions = "";
+    if(adminMode){
+      actions = `
+        <div class="actions">
+          <button class="btn-primary" onclick="event.stopPropagation(); openReceiveModal(${w.ID})">Receive stock</button>
+          <button class="btn-secondary" onclick="event.stopPropagation(); openEditModal(${w.ID})">Edit</button>
+        </div>`;
+    } else {
+      actions = estado !== "Agotado" ? `
+        <div class="actions">
+          <button class="btn-secondary" onclick="event.stopPropagation(); markAgotado(${w.ID})">Mark out of stock</button>
+        </div>` : "";
+    }
+    const thumb = w["ImagenURL"] ? `<img src="${w["ImagenURL"]}" class="card-thumb" onerror="this.style.display='none'" />` : "";
+    const clickAttr = adminMode ? "" : `onclick="openDetail(${w.ID})" style="cursor:pointer;"`;
+    return `
+      <div class="card" ${clickAttr}>
+        <div class="card-top">
+          ${thumb}
+          <div style="flex:1;">
+            <div class="card-title">${w["Nombre"]||""}</div>
+            <div class="card-sub">${[w["Tipo"], w["Bodega"], w["Pais"], w["Añada"]].filter(Boolean).join(' · ')}</div>
+          </div>
+          <span class="badge ${badgeClass}">${badgeClass === 'agotado' ? 'Out of stock' : 'Available'}</span>
+        </div>
+        <div class="meta-row">
+          <span>📍 <b>${w["Ubicación"]||"No location set"}</b></span>
+          ${w["Codigo"] ? `<span>🔖 <b>${w["Codigo"]}</b></span>` : ""}
+          <span>🍾 <b>${w["Cantidad"]!==undefined? w["Cantidad"]:0}</b> available</span>
+        </div>
+        ${w["Notas"] ? `<div class="meta-row"><span>${w["Notas"]}</span></div>` : ""}
+        ${actions}
+      </div>`;
+  }
+
+  function renderList(){
+    const list = getFiltered();
+    const el = document.getElementById('wineList');
+    if(list.length === 0){
+      el.innerHTML = '<div class="empty">No wines match your search.</div>';
+      return;
+    }
+    el.innerHTML = list.map(w=>wineCardHtml(w,false)).join('');
+  }
+
+  function renderAdminList(){
+    const el = document.getElementById('adminWineList');
+    if(wines.length === 0){
+      el.innerHTML = '<div class="empty">No wines added yet.</div>';
+      return;
+    }
+    el.innerHTML = wines.map(w=>wineCardHtml(w,true)).join('');
+  }
+
+  document.getElementById('searchInput').addEventListener('input', renderList);
+  document.getElementById('filterUbicacion').addEventListener('change', renderList);
+  document.getElementById('filterEstado').addEventListener('change', renderList);
+
+  // ---- Acciones Manager ----
+  async function markAgotado(id){
+    if(!confirm("Mark this wine as out of stock?")) return;
+    await postAction({ action: "markAgotado", id });
+    showToast("Wine marked as out of stock");
+    fetchWines();
+  }
+
+  // ---- Admin PIN ----
+  function checkPin(){
+    const val = document.getElementById('pinInput').value;
+    if(!val){ showToast("Enter a PIN"); return; }
+    adminPin = val;
+    document.getElementById('pinScreen').style.display = 'none';
+    document.getElementById('adminPanel').style.display = 'block';
+    renderAdminList();
+  }
+
+  // ---- Shelf map ----
+  // Fixed layout: 3 columns (H1, H2, H3) x 9 rows (A-I = slots 1-9).
+  // "split:true" rows hold up to 2 wines side by side sharing the same code.
+  const MAP_LAYOUT = [
+    { section: 'H1', rows: [
+        {row:'A',split:false},{row:'B',split:false},{row:'C',split:false},{row:'D',split:false},
+        {row:'E',split:true},{row:'F',split:true},{row:'G',split:true},{row:'H',split:true},{row:'I',split:true}
+      ]},
+    { section: 'H2', rows: [
+        {row:'A',split:true},{row:'B',split:true},{row:'C',split:false},{row:'D',split:false},{row:'E',split:false},
+        {row:'F',split:true},{row:'G',split:true},{row:'H',split:false},{row:'I',split:false}
+      ]},
+    { section: 'H3', rows: [
+        {row:'A',split:false},{row:'B',split:true},{row:'C',split:false},{row:'D',split:true},{row:'E',split:true},
+        {row:'F',split:false},{row:'G',split:false},{row:'H',split:false},{row:'I',split:false}
+      ]}
+  ];
+
+  function rowNumber_(row){ return row.charCodeAt(0) - 64; } // A->1, B->2, ...
+
+  function wineMiniHtml_(w, placeholderLabel, isHighlight){
+    if(!w){
+      return `<div class="map-wine-mini empty">${placeholderLabel}</div>`;
+    }
+    const thumb = w["ImagenURL"]
+      ? `<div class="mw-photo-frame"><img src="${w["ImagenURL"]}" onerror="this.style.display='none'" /></div>`
+      : '';
+    const qty = w["Cantidad"]!==undefined && w["Cantidad"]!=="" ? w["Cantidad"] : 0;
+    return `<div class="map-wine-mini ${isHighlight?'highlight':''}" data-id="${w.ID}" onclick="openDetail(${w.ID})">${thumb}<div class="mw-name">${w["Nombre"]||""}</div><div class="mw-qty">${qty} in stock</div></div>`;
+  }
+
+  function renderMap(highlightCodigo, highlightId){
+    const container = document.getElementById('mapContainer');
+    let html = '<div class="map-grid">';
+
+    MAP_LAYOUT.forEach(col=>{
+      html += `<div class="map-col"><div class="map-col-title">${col.section}</div>`;
+      col.rows.forEach(r=>{
+        const code = col.section + r.row;
+        const n = rowNumber_(r.row);
+        const matches = wines.filter(w => w["Codigo"] === code);
+        html += `<div class="map-slot"><div class="map-slot-code">${code}</div><div class="map-slot-wines ${r.split?'split':''}">`;
+
+        if(r.split){
+          for(let i=0; i<2; i++){
+            const w = matches[i];
+            const isHighlight = w && ((highlightId && w.ID == highlightId) || (!highlightId && highlightCodigo && w["Codigo"] === highlightCodigo));
+            html += wineMiniHtml_(w, `Vino ${n}${i===0?'a':'b'}`, isHighlight);
+          }
+        } else {
+          const w = matches[0];
+          const isHighlight = w && ((highlightId && w.ID == highlightId) || (!highlightId && highlightCodigo && w["Codigo"] === highlightCodigo));
+          html += wineMiniHtml_(w, `Vino ${n}`, isHighlight);
+        }
+
+        html += `</div></div>`;
+      });
+      html += `</div>`;
+    });
+
+    html += '</div>';
+    container.innerHTML = html;
+
+    if(highlightCodigo || highlightId){
+      const el = container.querySelector('.map-wine-mini.highlight');
+      if(el) setTimeout(()=> el.scrollIntoView({behavior:'smooth', block:'center', inline:'center'}), 100);
+    }
+  }
+
+  // ---- Detail view ----
+  function openDetail(id){
+    const w = wines.find(x=>x.ID==id);
+    if(!w) return;
+    currentWineId = id;
+    const estado = w["Estado"] || "Disponible";
+    const badgeClass = estado === "Agotado" ? "agotado" : "disponible";
+
+    const imgWrap = document.getElementById('detailImageWrap');
+    if(w["ImagenURL"]){
+      imgWrap.classList.remove('empty');
+      imgWrap.innerHTML = `<img src="${w["ImagenURL"]}" onerror="this.parentElement.classList.add('empty'); this.parentElement.innerHTML='No photo available';" />`;
+    } else {
+      imgWrap.classList.add('empty');
+      imgWrap.innerHTML = 'No photo available';
+    }
+
+    document.getElementById('detailNombre').textContent = w["Nombre"]||"";
+    document.getElementById('detailSub').textContent = [w["Tipo"], w["Bodega"], w["Pais"], w["Añada"]].filter(Boolean).join(' · ');
+    document.getElementById('detailBadge').innerHTML = `<span class="badge ${badgeClass}">${badgeClass==='agotado' ? 'Out of stock' : 'Available'}</span>`;
+    document.getElementById('detailUbicacion').textContent = w["Ubicación"] || "No location set";
+    document.getElementById('detailCantidad').textContent = w["Cantidad"]!==undefined ? w["Cantidad"] : 0;
+
+    const codigoWrap = document.getElementById('detailCodigoWrap');
+    if(w["Codigo"]){
+      codigoWrap.style.display = '';
+      document.getElementById('detailCodigo').textContent = w["Codigo"];
+    } else {
+      codigoWrap.style.display = 'none';
+    }
+
+    const descWrap = document.getElementById('detailDescripcionWrap');
+    descWrap.textContent = w["Descripcion"] || "";
+    descWrap.style.display = w["Descripcion"] ? '' : 'none';
+
+    openModal('modalDetail');
+  }
+
+  function viewOnMap(){
+    const w = wines.find(x=>x.ID==currentWineId);
+    closeModal('modalDetail');
+    document.querySelector('.tab[data-tab="mapa"]').click();
+    renderMap(w ? w["Codigo"] : null, w ? w.ID : null);
+  }
+
+  // ---- Modales ----
+  let receiveInvoiceType = "Digital";
+
+  function setInvoiceType(type){
+    receiveInvoiceType = type;
+    document.getElementById('btnTypeDigital').classList.toggle('active', type === 'Digital');
+    document.getElementById('btnTypePhysical').classList.toggle('active', type === 'Physical');
+    const isPhysical = type === 'Physical';
+    document.getElementById('receiveInvoiceNumber').style.display = isPhysical ? '' : 'none';
+    document.getElementById('receiveInvoicePhotoUrl').style.display = isPhysical ? '' : 'none';
+  }
+
+  function onStatusCheck(which){
+    const completed = document.getElementById('statusCompleted');
+    const missing = document.getElementById('statusMissing');
+    if(which === 'completed' && completed.checked){
+      missing.checked = false;
+    }
+    if(which === 'missing' && missing.checked){
+      completed.checked = false;
+    }
+    document.getElementById('receiveMissingNotes').style.display = missing.checked ? '' : 'none';
+  }
+
+  function openReceiveModal(id){
+    currentWineId = id;
+    const w = wines.find(x=>x.ID==id);
+    document.getElementById('receiveWineName').textContent = w ? w["Nombre"] : "";
+    document.getElementById('receiveQty').value = "";
+    document.getElementById('receiveInvoiceNumber').value = "";
+    document.getElementById('receiveInvoicePhotoUrl').value = "";
+    document.getElementById('receiveMissingNotes').value = "";
+    document.getElementById('receiveMissingNotes').style.display = 'none';
+    document.getElementById('statusCompleted').checked = false;
+    document.getElementById('statusMissing').checked = false;
+    setInvoiceType('Digital');
+    openModal('modalReceive');
+  }
+
+  async function submitReceive(){
+    const qty = Number(document.getElementById('receiveQty').value);
+    if(document.getElementById('receiveQty').value === "" || isNaN(qty) || qty<0){
+      showToast("Enter a valid quantity"); return;
+    }
+    const completed = document.getElementById('statusCompleted').checked;
+    const missing = document.getElementById('statusMissing').checked;
+    if(!completed && !missing){ showToast("Select Order completed or Missing items"); return; }
+
+    const missingNotes = document.getElementById('receiveMissingNotes').value.trim();
+    if(missing && !missingNotes){ showToast("Add details about what's missing"); return; }
+
+    const invoiceNumber = document.getElementById('receiveInvoiceNumber').value.trim();
+    if(receiveInvoiceType === 'Physical' && !invoiceNumber){ showToast("Enter the invoice number"); return; }
+
+    const payload = {
+      action: "receiveStock",
+      id: currentWineId,
+      cantidad: qty,
+      invoiceType: receiveInvoiceType,
+      invoiceNumber: receiveInvoiceType === 'Physical' ? invoiceNumber : "",
+      orderStatus: completed ? "Order completed" : "Missing items",
+      missingNotes: missing ? missingNotes : "",
+      invoicePhotoUrl: receiveInvoiceType === 'Physical' ? document.getElementById('receiveInvoicePhotoUrl').value.trim() : "",
+      pin: adminPin
+    };
+
+    const r = await postAction(payload);
+    if(r.ok){
+      showToast("Invoice received");
+      closeModal('modalReceive');
+      fetchWines();
+    } else {
+      showToast(r.error || "Error");
+    }
+  }
+
+  function openEditModal(id){
+    currentWineId = id;
+    const w = wines.find(x=>x.ID==id);
+    if(!w) return;
+    document.getElementById('editNombre').value = w["Nombre"]||"";
+    document.getElementById('editTipo').value = w["Tipo"]||"";
+    document.getElementById('editBodega').value = w["Bodega"]||"";
+    document.getElementById('editPais').value = w["Pais"]||"";
+    document.getElementById('editAnada').value = w["Añada"]||"";
+    document.getElementById('editUbicacion').value = w["Ubicación"]||"";
+    document.getElementById('editCodigo').value = w["Codigo"]||"";
+    document.getElementById('editCantidad').value = w["Cantidad"]||0;
+    document.getElementById('editImagenUrl').value = w["ImagenURL"]||"";
+    document.getElementById('editDescripcion').value = w["Descripcion"]||"";
+    document.getElementById('editNotas').value = w["Notas"]||"";
+    openModal('modalEdit');
+  }
+
+  async function submitEdit(){
+    const payload = {
+      action:"editWine",
+      id: currentWineId,
+      nombre: document.getElementById('editNombre').value,
+      tipo: document.getElementById('editTipo').value,
+      bodega: document.getElementById('editBodega').value,
+      pais: document.getElementById('editPais').value,
+      anada: document.getElementById('editAnada').value,
+      ubicacion: document.getElementById('editUbicacion').value,
+      codigo: document.getElementById('editCodigo').value,
+      cantidad: Number(document.getElementById('editCantidad').value),
+      imagenUrl: document.getElementById('editImagenUrl').value,
+      descripcion: document.getElementById('editDescripcion').value,
+      notas: document.getElementById('editNotas').value,
+      pin: adminPin
+    };
+    const r = await postAction(payload);
+    if(r.ok){
+      showToast("Wine updated");
+      closeModal('modalEdit');
+      fetchWines();
+    } else {
+      showToast(r.error || "Error");
+    }
+  }
+
+  async function submitDelete(){
+    if(!confirm("Permanently delete this wine?")) return;
+    const r = await postAction({ action:"deleteWine", id: currentWineId, pin: adminPin });
+    if(r.ok){
+      showToast("Wine deleted");
+      closeModal('modalEdit');
+      fetchWines();
+    } else {
+      showToast(r.error || "Error");
+    }
+  }
+
+  function openAddWineModal(){
+    ["addNombre","addTipo","addBodega","addPais","addAnada","addUbicacion","addCodigo","addCantidad","addImagenUrl","addDescripcion","addNotas"].forEach(id=>{
+      document.getElementById(id).value = "";
+    });
+    openModal('modalAdd');
+  }
+
+  async function submitAdd(){
+    const payload = {
+      action:"addWine",
+      nombre: document.getElementById('addNombre').value,
+      tipo: document.getElementById('addTipo').value,
+      bodega: document.getElementById('addBodega').value,
+      pais: document.getElementById('addPais').value,
+      anada: document.getElementById('addAnada').value,
+      ubicacion: document.getElementById('addUbicacion').value,
+      codigo: document.getElementById('addCodigo').value,
+      cantidad: Number(document.getElementById('addCantidad').value) || 0,
+      imagenUrl: document.getElementById('addImagenUrl').value,
+      descripcion: document.getElementById('addDescripcion').value,
+      notas: document.getElementById('addNotas').value,
+      pin: adminPin
+    };
+    if(!payload.nombre){ showToast("Name is required"); return; }
+    const r = await postAction(payload);
+    if(r.ok){
+      showToast("Wine added");
+      closeModal('modalAdd');
+      fetchWines();
+    } else {
+      showToast(r.error || "Error");
+    }
+  }
+
+  async function postAction(payload){
+    try{
+      const res = await fetch(SCRIPT_URL, {
+        method: "POST",
+        body: JSON.stringify(payload)
+      });
+      return await res.json();
+    }catch(err){
+      return { ok:false, error:"Connection error" };
+    }
+  }
+
+  // Auto-refresh data every 20s
+  fetchWines();
+  setInterval(fetchWines, 20000);
+</script>
+
+</body>
+</html>
