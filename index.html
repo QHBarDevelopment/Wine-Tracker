@@ -105,44 +105,50 @@
   }
   .detail-image-wrap.empty{ color:var(--gris); font-size:0.85rem; }
 
-  .map-grid{ display:flex; gap:14px; overflow-x:auto; padding-bottom:10px; }
-  .map-col{ flex: 0 0 200px; }
+  .map-grid{
+    display:grid;
+    grid-template-columns: repeat(3, minmax(0,1fr));
+    gap:6px;
+    width:100%;
+  }
+  .map-col{ min-width:0; }
   .map-col-title{
     font-weight:700;
     text-align:center;
     background: var(--vino);
     color:white;
-    border-radius:10px;
-    padding:8px;
-    margin-bottom:10px;
-    font-size:0.9rem;
+    border-radius:8px;
+    padding:6px 2px;
+    margin-bottom:8px;
+    font-size:0.75rem;
   }
   .map-slot{
     border:1px solid var(--borde);
-    border-radius:10px;
-    padding:8px;
-    margin-bottom:10px;
+    border-radius:8px;
+    padding:4px;
+    margin-bottom:6px;
     background:white;
+    min-width:0;
   }
   .map-slot-code{
-    font-size:0.7rem;
+    font-size:0.6rem;
     font-weight:700;
     color:var(--gris);
     text-align:center;
-    margin-bottom:6px;
+    margin-bottom:4px;
   }
-  .map-slot-wines{ display:flex; gap:6px; }
+  .map-slot-wines{ display:flex; gap:3px; min-width:0; }
   .map-slot-wines.split > .map-wine-mini:nth-child(2){
     border-left:1px solid var(--borde);
-    padding-left:6px;
+    padding-left:3px;
   }
   .map-wine-mini{
     flex:1;
     text-align:center;
-    font-size:0.7rem;
+    font-size:0.6rem;
     cursor:pointer;
-    border-radius:8px;
-    padding:4px;
+    border-radius:6px;
+    padding:2px;
     min-width:0;
   }
   .mw-photo-frame{
