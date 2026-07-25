@@ -231,6 +231,35 @@
     cursor:pointer;
   }
   .status-check input{ width:auto; }
+  .sales-row{
+    border:1px solid var(--borde);
+    border-radius:10px;
+    padding:10px;
+    margin-bottom:8px;
+    background:white;
+  }
+  .sales-row-top{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:8px;
+    margin-bottom:8px;
+  }
+  .sales-row-item{ font-size:0.85rem; font-weight:700; }
+  .sales-row-sub{ font-size:0.75rem; color:var(--gris); margin-top:2px; }
+  .sales-badge{
+    font-size:0.68rem;
+    font-weight:700;
+    padding:2px 8px;
+    border-radius:20px;
+    white-space:nowrap;
+  }
+  .sales-badge.matched{ background:#e6f4ea; color:var(--verde); }
+  .sales-badge.unmatched{ background:#fff3cd; color:#7a5c00; }
+  .sales-row-fields{ display:flex; gap:8px; }
+  .sales-row-fields select{ flex:2; }
+  .sales-row-fields input{ flex:1; }
+  .sales-summary{ font-size:0.82rem; color:var(--gris); margin-bottom:10px; }
   .card-title{ font-weight:700; font-size:1rem; }
   .card-sub{ color:var(--gris); font-size:0.82rem; margin-top:2px; }
   .badge{
@@ -388,11 +417,24 @@
 
     <div id="adminPanel" style="display:none;">
       <button class="btn-secondary btn-full" onclick="openAddWineModal()">+ Add new wine</button>
+      <button class="btn-secondary btn-full" style="margin-top:8px;" onclick="openImportSalesModal()">Import daily sales</button>
       <div class="section-title">Inventory</div>
       <div id="adminWineList"></div>
     </div>
   </div>
 
+</div>
+
+<!-- MODAL: import sales -->
+<div class="modal-bg" id="modalImportSales">
+  <div class="modal">
+    <button class="close-x" onclick="closeModal('modalImportSales')">✕</button>
+    <h3>Import daily sales</h3>
+    <p style="color:var(--gris); font-size:0.85rem;">Upload the sales export (.xlsx or .csv). This app can't read .numbers files directly — export it as Excel or CSV first.</p>
+    <input type="file" id="salesFileInput" accept=".xlsx,.xls,.csv" onchange="handleSalesFile(event)" />
+    <div id="salesPreviewWrap" style="margin-top:14px;"></div>
+    <button class="btn-primary btn-full" id="applySalesBtn" style="display:none; margin-top:14px;" onclick="applySalesImport()">Apply changes</button>
+  </div>
 </div>
 
 <!-- MODAL: wine detail -->
@@ -495,6 +537,7 @@
 
 <div class="toast" id="toast"></div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
   // =====================================================
   // CONFIG: paste your Apps Script Web App URL here
@@ -504,6 +547,7 @@
   let wines = [];
   let adminPin = null;
   let currentWineId = null;
+  let salesImportRows = [];
 
   function showToast(msg){
     const t = document.getElementById('toast');
@@ -944,6 +988,149 @@
       return await res.json();
     }catch(err){
       return { ok:false, error:"Connection error" };
+    }
+  }
+
+  // ---- Sales import ----
+  function escapeHtml_(str){
+    return String(str).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+  }
+
+  function normalizeText_(s){
+    return String(s).toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+  }
+
+  function findBestMatch_(menuItem){
+    const target = normalizeText_(menuItem);
+    if(!target) return null;
+    let match = wines.find(w => normalizeText_(w["Nombre"]) === target);
+    if(match) return match;
+    match = wines.find(w => {
+      const n = normalizeText_(w["Nombre"]);
+      return n && (target.includes(n) || n.includes(target));
+    });
+    return match || null;
+  }
+
+  function openImportSalesModal(){
+    salesImportRows = [];
+    document.getElementById('salesFileInput').value = '';
+    document.getElementById('salesPreviewWrap').innerHTML = '';
+    document.getElementById('applySalesBtn').style.display = 'none';
+    openModal('modalImportSales');
+  }
+
+  function handleSalesFile(event){
+    const file = event.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e){
+      try{
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, {type:'array'});
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(sheet, {header:1, defval:''});
+        parseSalesRows_(rows);
+      }catch(err){
+        showToast('Could not read that file');
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  function parseSalesRows_(rows){
+    let headerRowIndex = -1;
+    let colMenuItem = -1, colQuantity = -1, colMinorClass = -1;
+    for(let i=0; i<rows.length; i++){
+      const row = rows[i];
+      const idx = row.findIndex(c => String(c).trim().toLowerCase() === 'menu item');
+      if(idx !== -1){
+        headerRowIndex = i;
+        colMenuItem = idx;
+        colQuantity = row.findIndex(c => String(c).trim().toLowerCase() === 'quantity');
+        colMinorClass = row.findIndex(c => String(c).trim().toLowerCase() === 'minor class');
+        break;
+      }
+    }
+    if(headerRowIndex === -1){
+      showToast('Could not find a "Menu Item" column in this file');
+      salesImportRows = [];
+      renderSalesPreview();
+      return;
+    }
+
+    const parsed = [];
+    for(let i=headerRowIndex+1; i<rows.length; i++){
+      const row = rows[i];
+      const menuItem = String(row[colMenuItem] || '').trim();
+      const minorClass = colMinorClass !== -1 ? String(row[colMinorClass] || '').trim() : '';
+      if(!menuItem) continue;
+      if(menuItem.toLowerCase() === 'total' || minorClass.toLowerCase() === 'total') continue;
+      const quantity = colQuantity !== -1 ? Number(row[colQuantity]) || 0 : 0;
+      const match = findBestMatch_(menuItem);
+      parsed.push({ menuItem, minorClass, quantity, wineId: match ? match.ID : null });
+    }
+    salesImportRows = parsed;
+    renderSalesPreview();
+  }
+
+  function renderSalesPreview(){
+    const wrap = document.getElementById('salesPreviewWrap');
+    if(salesImportRows.length === 0){
+      wrap.innerHTML = '<p style="color:var(--gris); font-size:0.85rem;">No rows found in this file.</p>';
+      document.getElementById('applySalesBtn').style.display = 'none';
+      return;
+    }
+    const matchedCount = salesImportRows.filter(r => r.wineId !== null).length;
+    let html = `<div class="sales-summary">${salesImportRows.length} rows found, ${matchedCount} auto-matched. Review before applying — unmatched rows are skipped unless you pick a wine.</div>`;
+    salesImportRows.forEach((row, i)=>{
+      const badgeClass = row.wineId !== null ? 'matched' : 'unmatched';
+      const badgeText = row.wineId !== null ? 'Matched' : 'Review';
+      html += `<div class="sales-row" data-index="${i}">
+        <div class="sales-row-top">
+          <div>
+            <div class="sales-row-item">${escapeHtml_(row.menuItem)}</div>
+            <div class="sales-row-sub">${escapeHtml_(row.minorClass || '')}</div>
+          </div>
+          <span class="sales-badge ${badgeClass}">${badgeText}</span>
+        </div>
+        <div class="sales-row-fields">
+          <select class="sales-select" data-index="${i}">
+            <option value="">-- Skip this row --</option>
+            ${wines.map(w => `<option value="${w.ID}" ${row.wineId == w.ID ? 'selected':''}>${escapeHtml_(w["Nombre"])}${w["Codigo"] ? ' ('+escapeHtml_(w["Codigo"])+')' : ''}</option>`).join('')}
+          </select>
+          <input class="sales-qty" type="number" min="0" data-index="${i}" value="${row.quantity}" />
+        </div>
+      </div>`;
+    });
+    wrap.innerHTML = html;
+    document.getElementById('applySalesBtn').style.display = 'block';
+
+    wrap.querySelectorAll('.sales-select').forEach(sel=>{
+      sel.addEventListener('change', e=>{
+        const idx = Number(e.target.dataset.index);
+        salesImportRows[idx].wineId = e.target.value ? Number(e.target.value) : null;
+      });
+    });
+    wrap.querySelectorAll('.sales-qty').forEach(inp=>{
+      inp.addEventListener('input', e=>{
+        const idx = Number(e.target.dataset.index);
+        salesImportRows[idx].quantity = Number(e.target.value) || 0;
+      });
+    });
+  }
+
+  async function applySalesImport(){
+    const toApply = salesImportRows.filter(r => r.wineId !== null && r.quantity > 0);
+    if(toApply.length === 0){ showToast('No rows to apply'); return; }
+    const sales = toApply.map(r => ({ id: r.wineId, cantidad: r.quantity }));
+    const r = await postAction({ action:'applySales', sales, pin: adminPin });
+    if(r.ok){
+      showToast(`Updated ${r.updated !== undefined ? r.updated : toApply.length} wines`);
+      closeModal('modalImportSales');
+      fetchWines();
+    } else {
+      showToast(r.error || 'Error applying sales');
     }
   }
 
