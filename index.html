@@ -104,7 +104,11 @@
     transform: translate(-50%,-50%) rotate(90deg);
   }
   .detail-image-wrap.empty{ color:var(--gris); font-size:0.85rem; }
-
+  .map-area-toggle{
+    display:flex;
+    gap:8px;
+    margin: 4px 0 14px;
+  }
   .map-grid{
     display:grid;
     grid-template-columns: repeat(3, minmax(0,1fr));
@@ -121,6 +125,15 @@
     padding:6px 2px;
     margin-bottom:8px;
     font-size:0.75rem;
+  }
+  .map-slot-backups{
+    text-align:center;
+    margin-bottom:4px;
+  }
+  .map-slot-backups .backup-line{
+    font-size:0.55rem;
+    color:var(--gris);
+    line-height:1.2;
   }
   .map-slot{
     border:1px solid var(--borde);
@@ -198,7 +211,6 @@
     border:1px dashed var(--borde);
   }
   .map-empty-note{ text-align:center; color:var(--gris); font-size:0.85rem; padding:30px 10px; }
-
   .invoice-type-toggle{
     display:flex;
     gap:8px;
@@ -365,25 +377,20 @@
 </style>
 </head>
 <body>
-
 <header>
   <h1>🍷 Wine Cellar</h1>
   <p id="subheader">Real-time availability and location</p>
 </header>
-
 <div class="tabs">
   <div class="tab active" data-tab="consultar">Browse</div>
   <div class="tab" data-tab="mapa">Map</div>
   <div class="tab" data-tab="admin">Admin</div>
 </div>
-
 <div class="container">
-
   <!-- CONFIG WARNING -->
   <div id="configWarning" class="config-warning" style="display:none;">
     ⚠️ Backend URL not configured. Edit the <code>SCRIPT_URL</code> constant in this file.
   </div>
-
   <!-- BROWSE VIEW -->
   <div id="view-consultar">
     <div class="search-row">
@@ -399,13 +406,15 @@
     </div>
     <div id="wineList"></div>
   </div>
-
   <!-- MAP VIEW -->
   <div id="view-mapa" style="display:none;">
     <p style="color:var(--gris); font-size:0.85rem; margin-top:0;">Tap any bottle to see its details.</p>
+    <div class="map-area-toggle" id="mapAreaToggle">
+      <button type="button" id="btnAreaHarbour" class="itype-btn active" onclick="switchMapArea('harbour')">Harbour Cellar Wine</button>
+      <button type="button" id="btnAreaGarden" class="itype-btn" onclick="switchMapArea('garden')">Garden Cellar Wine</button>
+    </div>
     <div id="mapContainer"></div>
   </div>
-
   <!-- ADMIN VIEW -->
   <div id="view-admin" style="display:none;">
     <div id="pinScreen" class="pin-box">
@@ -414,7 +423,6 @@
       <input id="pinInput" type="password" inputmode="numeric" placeholder="PIN" style="margin-bottom:10px;" />
       <button class="btn-primary btn-full" onclick="checkPin()">Enter</button>
     </div>
-
     <div id="adminPanel" style="display:none;">
       <button class="btn-secondary btn-full" onclick="openAddWineModal()">+ Add new wine</button>
       <button class="btn-secondary btn-full" style="margin-top:8px;" onclick="openImportSalesModal()">Import daily sales</button>
@@ -422,9 +430,7 @@
       <div id="adminWineList"></div>
     </div>
   </div>
-
 </div>
-
 <!-- MODAL: import sales -->
 <div class="modal-bg" id="modalImportSales">
   <div class="modal">
@@ -436,7 +442,6 @@
     <button class="btn-primary btn-full" id="applySalesBtn" style="display:none; margin-top:14px;" onclick="applySalesImport()">Apply changes</button>
   </div>
 </div>
-
 <!-- MODAL: wine detail -->
 <div class="modal-bg" id="modalDetail">
   <div class="modal">
@@ -454,23 +459,19 @@
     <button class="btn-primary btn-full" onclick="viewOnMap()">View on shelf map</button>
   </div>
 </div>
-
 <!-- MODAL: recibir stock / factura -->
 <div class="modal-bg" id="modalReceive">
   <div class="modal">
     <button class="close-x" onclick="closeModal('modalReceive')">✕</button>
     <h3>Receive invoice</h3>
     <p id="receiveWineName" style="color:var(--gris); font-size:0.9rem;"></p>
-
     <div class="invoice-type-toggle">
       <button type="button" id="btnTypeDigital" class="itype-btn active" onclick="setInvoiceType('Digital')">Digital invoice</button>
       <button type="button" id="btnTypePhysical" class="itype-btn" onclick="setInvoiceType('Physical')">Physical invoice</button>
     </div>
-
     <div class="form-grid">
       <input id="receiveInvoiceNumber" placeholder="Invoice number" style="display:none;" />
       <input id="receiveQty" type="number" min="0" placeholder="Quantity received" />
-
       <div class="status-check-row">
         <label class="status-check">
           <input type="checkbox" id="statusCompleted" onchange="onStatusCheck('completed')" />
@@ -481,15 +482,12 @@
           Missing items
         </label>
       </div>
-
       <textarea id="receiveMissingNotes" placeholder="Details about what's missing or didn't arrive" rows="2" style="display:none;"></textarea>
       <input id="receiveInvoicePhotoUrl" placeholder="Invoice photo URL (optional)" style="display:none;" />
-
       <button class="btn-primary btn-full" onclick="submitReceive()">Confirm receipt</button>
     </div>
   </div>
 </div>
-
 <!-- MODAL: edit wine -->
 <div class="modal-bg" id="modalEdit">
   <div class="modal">
@@ -512,7 +510,6 @@
     </div>
   </div>
 </div>
-
 <!-- MODAL: add wine -->
 <div class="modal-bg" id="modalAdd">
   <div class="modal">
@@ -534,31 +531,25 @@
     </div>
   </div>
 </div>
-
 <div class="toast" id="toast"></div>
-
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
   // =====================================================
   // CONFIG: paste your Apps Script Web App URL here
   // =====================================================
-  const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzR0Z94v9SbPYtAbHNAztokas51-di6r6aLh43_OvHoa3iGUBChTs9zDGa3G_LdldBKRw/exec";
-
+  const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwrM_PMihHmeQhBUzSMb8ZOhdYkIwk0I48aH5QF1x_hHNuyc0GmNyvVAVRyHs84caP8iA/exec";
   let wines = [];
   let adminPin = null;
   let currentWineId = null;
   let salesImportRows = [];
-
   function showToast(msg){
     const t = document.getElementById('toast');
     t.textContent = msg;
     t.classList.add('show');
     setTimeout(()=> t.classList.remove('show'), 2200);
   }
-
   function openModal(id){ document.getElementById(id).classList.add('show'); }
   function closeModal(id){ document.getElementById(id).classList.remove('show'); }
-
   // ---- Tabs ----
   document.querySelectorAll('.tab').forEach(tab=>{
     tab.addEventListener('click', ()=>{
@@ -571,7 +562,6 @@
       if(name === 'mapa') renderMap();
     });
   });
-
   async function fetchWines(){
     if(SCRIPT_URL.includes("PEGA_AQUI")){
       document.getElementById('configWarning').style.display = 'block';
@@ -593,7 +583,6 @@
       showToast("Could not connect to server");
     }
   }
-
   function renderFilters(){
     const sel = document.getElementById('filterUbicacion');
     const current = sel.value;
@@ -602,7 +591,6 @@
       ubicaciones.map(u=>`<option value="${u}">${u}</option>`).join('');
     sel.value = current;
   }
-
   function getFiltered(){
     const q = document.getElementById('searchInput').value.toLowerCase();
     const ubic = document.getElementById('filterUbicacion').value;
@@ -618,7 +606,6 @@
       return matchQ && matchU && matchE;
     });
   }
-
   function wineCardHtml(w, adminMode){
     const estado = w["Estado"] || "Disponible";
     const badgeClass = estado === "Agotado" ? "agotado" : "disponible";
@@ -656,7 +643,6 @@
         ${actions}
       </div>`;
   }
-
   function renderList(){
     const list = getFiltered();
     const el = document.getElementById('wineList');
@@ -666,7 +652,6 @@
     }
     el.innerHTML = list.map(w=>wineCardHtml(w,false)).join('');
   }
-
   function renderAdminList(){
     const el = document.getElementById('adminWineList');
     if(wines.length === 0){
@@ -675,11 +660,9 @@
     }
     el.innerHTML = wines.map(w=>wineCardHtml(w,true)).join('');
   }
-
   document.getElementById('searchInput').addEventListener('input', renderList);
   document.getElementById('filterUbicacion').addEventListener('change', renderList);
   document.getElementById('filterEstado').addEventListener('change', renderList);
-
   // ---- Acciones Manager ----
   async function markAgotado(id){
     if(!confirm("Mark this wine as out of stock?")) return;
@@ -687,7 +670,6 @@
     showToast("Wine marked as out of stock");
     fetchWines();
   }
-
   // ---- Admin PIN ----
   function checkPin(){
     const val = document.getElementById('pinInput').value;
@@ -697,27 +679,47 @@
     document.getElementById('adminPanel').style.display = 'block';
     renderAdminList();
   }
-
   // ---- Shelf map ----
-  // Fixed layout: 3 columns (H1, H2, H3) x 9 rows (A-I = slots 1-9).
+  // Fixed layout: 3 columns x 9 rows (A-I = slots 1-9) per cellar area.
   // "split:true" rows hold up to 2 wines side by side sharing the same code.
-  const MAP_LAYOUT = [
+  // backup1 / backup2 on each row: names of backup storage spots for that specific
+  // shelf code. Left blank for now — fill these in over time as they are assigned.
+  const MAP_LAYOUT_HARBOUR = [
     { section: 'H1', rows: [
-        {row:'A',split:false},{row:'B',split:false},{row:'C',split:false},{row:'D',split:false},
-        {row:'E',split:true},{row:'F',split:true},{row:'G',split:true},{row:'H',split:true},{row:'I',split:true}
+        {row:'A',split:false, backup1:'', backup2:''},{row:'B',split:false, backup1:'', backup2:''},{row:'C',split:false, backup1:'', backup2:''},{row:'D',split:false, backup1:'', backup2:''},
+        {row:'E',split:true, backup1:'', backup2:''},{row:'F',split:true, backup1:'', backup2:''},{row:'G',split:true, backup1:'', backup2:''},{row:'H',split:true, backup1:'', backup2:''},{row:'I',split:true, backup1:'', backup2:''}
       ]},
     { section: 'H2', rows: [
-        {row:'A',split:true},{row:'B',split:true},{row:'C',split:false},{row:'D',split:false},{row:'E',split:false},
-        {row:'F',split:true},{row:'G',split:true},{row:'H',split:false},{row:'I',split:false}
+        {row:'A',split:true, backup1:'', backup2:''},{row:'B',split:true, backup1:'', backup2:''},{row:'C',split:false, backup1:'', backup2:''},{row:'D',split:false, backup1:'', backup2:''},{row:'E',split:false, backup1:'', backup2:''},
+        {row:'F',split:true, backup1:'', backup2:''},{row:'G',split:true, backup1:'', backup2:''},{row:'H',split:false, backup1:'', backup2:''},{row:'I',split:false, backup1:'', backup2:''}
       ]},
     { section: 'H3', rows: [
-        {row:'A',split:false},{row:'B',split:true},{row:'C',split:false},{row:'D',split:true},{row:'E',split:true},
-        {row:'F',split:false},{row:'G',split:false},{row:'H',split:false},{row:'I',split:false}
+        {row:'A',split:false, backup1:'', backup2:''},{row:'B',split:true, backup1:'', backup2:''},{row:'C',split:false, backup1:'', backup2:''},{row:'D',split:true, backup1:'', backup2:''},{row:'E',split:true, backup1:'', backup2:''},
+        {row:'F',split:false, backup1:'', backup2:''},{row:'G',split:false, backup1:'', backup2:''},{row:'H',split:false, backup1:'', backup2:''},{row:'I',split:false, backup1:'', backup2:''}
       ]}
   ];
-
+  const MAP_LAYOUT_GARDEN = [
+    { section: 'G1', rows: [
+        {row:'A',split:false, backup1:'', backup2:''},{row:'B',split:false, backup1:'', backup2:''},{row:'C',split:false, backup1:'', backup2:''},{row:'D',split:false, backup1:'', backup2:''},
+        {row:'E',split:true, backup1:'', backup2:''},{row:'F',split:true, backup1:'', backup2:''},{row:'G',split:true, backup1:'', backup2:''},{row:'H',split:true, backup1:'', backup2:''},{row:'I',split:true, backup1:'', backup2:''}
+      ]},
+    { section: 'G2', rows: [
+        {row:'A',split:true, backup1:'', backup2:''},{row:'B',split:true, backup1:'', backup2:''},{row:'C',split:false, backup1:'', backup2:''},{row:'D',split:false, backup1:'', backup2:''},{row:'E',split:false, backup1:'', backup2:''},
+        {row:'F',split:true, backup1:'', backup2:''},{row:'G',split:true, backup1:'', backup2:''},{row:'H',split:false, backup1:'', backup2:''},{row:'I',split:false, backup1:'', backup2:''}
+      ]},
+    { section: 'G3', rows: [
+        {row:'A',split:false, backup1:'', backup2:''},{row:'B',split:true, backup1:'', backup2:''},{row:'C',split:false, backup1:'', backup2:''},{row:'D',split:true, backup1:'', backup2:''},{row:'E',split:true, backup1:'', backup2:''},
+        {row:'F',split:false, backup1:'', backup2:''},{row:'G',split:false, backup1:'', backup2:''},{row:'H',split:false, backup1:'', backup2:''},{row:'I',split:false, backup1:'', backup2:''}
+      ]}
+  ];
+  let currentMapArea = 'harbour'; // 'harbour' | 'garden'
+  function switchMapArea(area){
+    currentMapArea = area;
+    document.getElementById('btnAreaHarbour').classList.toggle('active', area === 'harbour');
+    document.getElementById('btnAreaGarden').classList.toggle('active', area === 'garden');
+    renderMap();
+  }
   function rowNumber_(row){ return row.charCodeAt(0) - 64; } // A->1, B->2, ...
-
   function wineMiniHtml_(w, placeholderLabel, isHighlight){
     if(!w){
       return `<div class="map-wine-mini empty">${placeholderLabel}</div>`;
@@ -728,19 +730,23 @@
     const qty = w["Cantidad"]!==undefined && w["Cantidad"]!=="" ? w["Cantidad"] : 0;
     return `<div class="map-wine-mini ${isHighlight?'highlight':''}" data-id="${w.ID}" onclick="openDetail(${w.ID})">${thumb}<div class="mw-name">${w["Nombre"]||""}</div><div class="mw-qty">${qty} in stock</div></div>`;
   }
-
   function renderMap(highlightCodigo, highlightId){
     const container = document.getElementById('mapContainer');
+    const layout = currentMapArea === 'garden' ? MAP_LAYOUT_GARDEN : MAP_LAYOUT_HARBOUR;
     let html = '<div class="map-grid">';
-
-    MAP_LAYOUT.forEach(col=>{
-      html += `<div class="map-col"><div class="map-col-title">${col.section}</div>`;
+    layout.forEach(col=>{
+      html += `<div class="map-col">
+        <div class="map-col-title">${col.section}</div>`;
       col.rows.forEach(r=>{
         const code = col.section + r.row;
         const n = rowNumber_(r.row);
         const matches = wines.filter(w => w["Codigo"] === code);
-        html += `<div class="map-slot"><div class="map-slot-code">${code}</div><div class="map-slot-wines ${r.split?'split':''}">`;
-
+        html += `<div class="map-slot"><div class="map-slot-code">${code}</div>
+          <div class="map-slot-backups">
+            <div class="backup-line">Backup 1: ${r.backup1 || '—'}</div>
+            <div class="backup-line">Backup 2: ${r.backup2 || '—'}</div>
+          </div>
+          <div class="map-slot-wines ${r.split?'split':''}">`;
         if(r.split){
           for(let i=0; i<2; i++){
             const w = matches[i];
@@ -752,21 +758,17 @@
           const isHighlight = w && ((highlightId && w.ID == highlightId) || (!highlightId && highlightCodigo && w["Codigo"] === highlightCodigo));
           html += wineMiniHtml_(w, `Vino ${n}`, isHighlight);
         }
-
         html += `</div></div>`;
       });
       html += `</div>`;
     });
-
     html += '</div>';
     container.innerHTML = html;
-
     if(highlightCodigo || highlightId){
       const el = container.querySelector('.map-wine-mini.highlight');
       if(el) setTimeout(()=> el.scrollIntoView({behavior:'smooth', block:'center', inline:'center'}), 100);
     }
   }
-
   // ---- Detail view ----
   function openDetail(id){
     const w = wines.find(x=>x.ID==id);
@@ -774,7 +776,6 @@
     currentWineId = id;
     const estado = w["Estado"] || "Disponible";
     const badgeClass = estado === "Agotado" ? "agotado" : "disponible";
-
     const imgWrap = document.getElementById('detailImageWrap');
     if(w["ImagenURL"]){
       imgWrap.classList.remove('empty');
@@ -783,13 +784,11 @@
       imgWrap.classList.add('empty');
       imgWrap.innerHTML = 'No photo available';
     }
-
     document.getElementById('detailNombre').textContent = w["Nombre"]||"";
     document.getElementById('detailSub').textContent = [w["Tipo"], w["Bodega"], w["Pais"], w["Añada"]].filter(Boolean).join(' · ');
     document.getElementById('detailBadge').innerHTML = `<span class="badge ${badgeClass}">${badgeClass==='agotado' ? 'Out of stock' : 'Available'}</span>`;
     document.getElementById('detailUbicacion').textContent = w["Ubicación"] || "No location set";
     document.getElementById('detailCantidad').textContent = w["Cantidad"]!==undefined ? w["Cantidad"] : 0;
-
     const codigoWrap = document.getElementById('detailCodigoWrap');
     if(w["Codigo"]){
       codigoWrap.style.display = '';
@@ -797,24 +796,24 @@
     } else {
       codigoWrap.style.display = 'none';
     }
-
     const descWrap = document.getElementById('detailDescripcionWrap');
     descWrap.textContent = w["Descripcion"] || "";
     descWrap.style.display = w["Descripcion"] ? '' : 'none';
-
     openModal('modalDetail');
   }
-
   function viewOnMap(){
     const w = wines.find(x=>x.ID==currentWineId);
     closeModal('modalDetail');
+    if(w && w["Codigo"]){
+      currentMapArea = w["Codigo"].startsWith('G') ? 'garden' : 'harbour';
+      document.getElementById('btnAreaHarbour').classList.toggle('active', currentMapArea === 'harbour');
+      document.getElementById('btnAreaGarden').classList.toggle('active', currentMapArea === 'garden');
+    }
     document.querySelector('.tab[data-tab="mapa"]').click();
     renderMap(w ? w["Codigo"] : null, w ? w.ID : null);
   }
-
   // ---- Modales ----
   let receiveInvoiceType = "Digital";
-
   function setInvoiceType(type){
     receiveInvoiceType = type;
     document.getElementById('btnTypeDigital').classList.toggle('active', type === 'Digital');
@@ -823,7 +822,6 @@
     document.getElementById('receiveInvoiceNumber').style.display = isPhysical ? '' : 'none';
     document.getElementById('receiveInvoicePhotoUrl').style.display = isPhysical ? '' : 'none';
   }
-
   function onStatusCheck(which){
     const completed = document.getElementById('statusCompleted');
     const missing = document.getElementById('statusMissing');
@@ -835,7 +833,6 @@
     }
     document.getElementById('receiveMissingNotes').style.display = missing.checked ? '' : 'none';
   }
-
   function openReceiveModal(id){
     currentWineId = id;
     const w = wines.find(x=>x.ID==id);
@@ -850,7 +847,6 @@
     setInvoiceType('Digital');
     openModal('modalReceive');
   }
-
   async function submitReceive(){
     const qty = Number(document.getElementById('receiveQty').value);
     if(document.getElementById('receiveQty').value === "" || isNaN(qty) || qty<0){
@@ -859,13 +855,10 @@
     const completed = document.getElementById('statusCompleted').checked;
     const missing = document.getElementById('statusMissing').checked;
     if(!completed && !missing){ showToast("Select Order completed or Missing items"); return; }
-
     const missingNotes = document.getElementById('receiveMissingNotes').value.trim();
     if(missing && !missingNotes){ showToast("Add details about what's missing"); return; }
-
     const invoiceNumber = document.getElementById('receiveInvoiceNumber').value.trim();
     if(receiveInvoiceType === 'Physical' && !invoiceNumber){ showToast("Enter the invoice number"); return; }
-
     const payload = {
       action: "receiveStock",
       id: currentWineId,
@@ -877,7 +870,6 @@
       invoicePhotoUrl: receiveInvoiceType === 'Physical' ? document.getElementById('receiveInvoicePhotoUrl').value.trim() : "",
       pin: adminPin
     };
-
     const r = await postAction(payload);
     if(r.ok){
       showToast("Invoice received");
@@ -887,7 +879,6 @@
       showToast(r.error || "Error");
     }
   }
-
   function openEditModal(id){
     currentWineId = id;
     const w = wines.find(x=>x.ID==id);
@@ -905,7 +896,6 @@
     document.getElementById('editNotas').value = w["Notas"]||"";
     openModal('modalEdit');
   }
-
   async function submitEdit(){
     const payload = {
       action:"editWine",
@@ -932,7 +922,6 @@
       showToast(r.error || "Error");
     }
   }
-
   async function submitDelete(){
     if(!confirm("Permanently delete this wine?")) return;
     const r = await postAction({ action:"deleteWine", id: currentWineId, pin: adminPin });
@@ -944,14 +933,12 @@
       showToast(r.error || "Error");
     }
   }
-
   function openAddWineModal(){
     ["addNombre","addTipo","addBodega","addPais","addAnada","addUbicacion","addCodigo","addCantidad","addImagenUrl","addDescripcion","addNotas"].forEach(id=>{
       document.getElementById(id).value = "";
     });
     openModal('modalAdd');
   }
-
   async function submitAdd(){
     const payload = {
       action:"addWine",
@@ -978,7 +965,6 @@
       showToast(r.error || "Error");
     }
   }
-
   async function postAction(payload){
     try{
       const res = await fetch(SCRIPT_URL, {
@@ -990,16 +976,13 @@
       return { ok:false, error:"Connection error" };
     }
   }
-
   // ---- Sales import ----
   function escapeHtml_(str){
     return String(str).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
   }
-
   function normalizeText_(s){
     return String(s).toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
   }
-
   function findBestMatch_(menuItem){
     const target = normalizeText_(menuItem);
     if(!target) return null;
@@ -1011,7 +994,6 @@
     });
     return match || null;
   }
-
   function openImportSalesModal(){
     salesImportRows = [];
     document.getElementById('salesFileInput').value = '';
@@ -1019,7 +1001,6 @@
     document.getElementById('applySalesBtn').style.display = 'none';
     openModal('modalImportSales');
   }
-
   function handleSalesFile(event){
     const file = event.target.files[0];
     if(!file) return;
@@ -1037,7 +1018,6 @@
     };
     reader.readAsArrayBuffer(file);
   }
-
   function parseSalesRows_(rows){
     let headerRowIndex = -1;
     let colMenuItem = -1, colQuantity = -1, colMinorClass = -1;
@@ -1058,7 +1038,6 @@
       renderSalesPreview();
       return;
     }
-
     const parsed = [];
     for(let i=headerRowIndex+1; i<rows.length; i++){
       const row = rows[i];
@@ -1073,7 +1052,6 @@
     salesImportRows = parsed;
     renderSalesPreview();
   }
-
   function renderSalesPreview(){
     const wrap = document.getElementById('salesPreviewWrap');
     if(salesImportRows.length === 0){
@@ -1105,7 +1083,6 @@
     });
     wrap.innerHTML = html;
     document.getElementById('applySalesBtn').style.display = 'block';
-
     wrap.querySelectorAll('.sales-select').forEach(sel=>{
       sel.addEventListener('change', e=>{
         const idx = Number(e.target.dataset.index);
@@ -1119,7 +1096,6 @@
       });
     });
   }
-
   async function applySalesImport(){
     const toApply = salesImportRows.filter(r => r.wineId !== null && r.quantity > 0);
     if(toApply.length === 0){ showToast('No rows to apply'); return; }
@@ -1133,11 +1109,9 @@
       showToast(r.error || 'Error applying sales');
     }
   }
-
   // Auto-refresh data every 20s
   fetchWines();
   setInterval(fetchWines, 20000);
 </script>
-
 </body>
 </html>
